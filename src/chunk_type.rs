@@ -11,47 +11,58 @@ impl ChunkType {
         Ok(Self { bytes })
     }
     pub fn to_string(&self) -> String {
-        unimplemented!()
+        if let Ok(str) = std::str::from_utf8(&self.bytes) {
+            str.to_string()
+        } else {
+            panic!();
+        }
     }
     pub fn bytes(&self) -> [u8; 4] {
         self.bytes
     }
     pub fn is_critical(&self) -> bool {
-        unimplemented!()
+        self.bytes[0] & 32 == 0
     }
     pub fn is_public(&self) -> bool {
-        unimplemented!()
+        self.bytes[1] & 32 == 0
     }
     pub fn is_reserved_bit_valid(&self) -> bool {
-        unimplemented!()
+        self.bytes[2] & 32 == 0
     }
     pub fn is_safe_to_copy(&self) -> bool {
-        unimplemented!()
+        self.bytes[3] & 32 == 32
     }
     pub fn is_valid(&self) -> bool {
-        unimplemented!()
+        self.is_reserved_bit_valid()
     }
 }
 
 impl TryFrom<[u8; 4]> for ChunkType {
     type Error = ();
     fn try_from(value: [u8; 4]) -> Result<Self, ()> {
-        unimplemented!()
+        Ok(Self { bytes: value })
     }
 }
 
+fn is_letter(char: char) -> bool {
+    (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z')
+}
+
 impl FromStr for ChunkType {
-    type Err = std::array::TryFromSliceError;
+    type Err = ();
     fn from_str(str: &str) -> Result<Self, Self::Err> {
-        Ok(Self {
-            bytes: str.as_bytes().try_into()?,
-        })
+        if str.chars().all(|char| is_letter(char)) {
+            if let Ok(bytes) = str.as_bytes().try_into() {
+                return Ok(Self { bytes });
+            }
+        }
+        Err(())
     }
 }
 
 impl Display for ChunkType {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), std::fmt::Error> {
-        unimplemented!()
+        write!(fmt, "{}", self.to_string())
     }
 }
 
