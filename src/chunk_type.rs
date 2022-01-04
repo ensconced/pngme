@@ -21,16 +21,16 @@ impl ChunkType {
         self.bytes
     }
     pub fn is_critical(&self) -> bool {
-        self.bytes[0] & 32 == 0
+        self.bytes[0].is_ascii_uppercase()
     }
     pub fn is_public(&self) -> bool {
-        self.bytes[1] & 32 == 0
+        self.bytes[1].is_ascii_uppercase()
     }
     pub fn is_reserved_bit_valid(&self) -> bool {
-        self.bytes[2] & 32 == 0
+        self.bytes[2].is_ascii_uppercase()
     }
     pub fn is_safe_to_copy(&self) -> bool {
-        self.bytes[3] & 32 == 32
+        self.bytes[3].is_ascii_lowercase()
     }
     pub fn is_valid(&self) -> bool {
         self.is_reserved_bit_valid()
