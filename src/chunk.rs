@@ -6,7 +6,7 @@ use std::{
 use crate::chunk_type::ChunkType;
 use crc::crc32::checksum_ieee;
 
-struct Chunk {
+pub struct Chunk {
     length: u32,
     chunk_type: ChunkType,
     data: Vec<u8>,
@@ -33,6 +33,13 @@ impl Chunk {
     }
     fn crc(&self) -> u32 {
         self.crc
+    }
+    fn new(chunk_type: ChunkType, data: Vec<u8>) -> Self {
+        Self {
+            length: data.len() as u32,
+            chunk_type,
+            data,
+        }
     }
 }
 
