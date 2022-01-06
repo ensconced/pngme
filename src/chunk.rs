@@ -1,11 +1,10 @@
-use std::{array::TryFromSliceError, str::Bytes};
+use std::{
+    fmt::{Display, Formatter},
+    string::FromUtf8Error,
+};
 
 use crate::chunk_type::ChunkType;
-use crc::{Crc, CRC_32_ISCSI};
-
-pub const CASTAGNOLI: Crc<u32> = Crc::<u32>::new(&CRC_32_ISCSI);
-
-// CASTAGNOLI.checksum(b"123456789")
+use crc::crc32::checksum_ieee;
 
 struct Chunk {
     length: u32,
@@ -22,6 +21,21 @@ fn four_bytes_from_slice(slice: &[u8]) -> Result<[u8; 4], ()> {
     }
 }
 
+impl Chunk {
+    fn length(&self) -> u32 {
+        self.length
+    }
+    fn chunk_type(&self) -> &ChunkType {
+        &self.chunk_type
+    }
+    fn data_as_string(&self) -> Result<String, FromUtf8Error> {
+        String::from_utf8(self.data.clone())
+    }
+    fn crc(&self) -> u32 {
+        self.crc
+    }
+}
+
 impl TryFrom<&Vec<u8>> for Chunk {
     type Error = ();
     fn try_from(bytes: &Vec<u8>) -> Result<Self, ()> {
@@ -30,23 +44,36 @@ impl TryFrom<&Vec<u8>> for Chunk {
         let second_four_bytes = four_bytes_from_slice(&bytes[4..8])?;
         let chunk_type = ChunkType::try_from(second_four_bytes)?;
         let mut data = Vec::new();
-        data.extend_from_slice(&bytes[9..bytes.len() - 4]);
-        let crc = u32::from_be_bytes(four_bytes_from_slice(&bytes[bytes.len() - 4..bytes.len()])?);
+        data.extend_from_slice(&bytes[8..bytes.len() - 4]);
+        let provided_crc =
+            u32::from_be_bytes(four_bytes_from_slice(&bytes[bytes.len() - 4..bytes.len()])?);
+        let computed_crc = checksum_ieee(&bytes[4..bytes.len() - 4]);
+        if provided_crc != computed_crc {
+            eprintln!("computed: {}, provided: {}", computed_crc, provided_crc);
+            return Err(());
+        }
         Ok(Self {
             length,
             chunk_type,
             data,
-            crc,
+            crc: computed_crc,
         })
+    }
+}
+
+impl Display for Chunk {
+    fn fmt(&self, fmt: &mut Formatter) -> std::fmt::Result {
+        if let Ok(string) = self.data_as_string() {
+            write!(fmt, "{}", string)
+        } else {
+            Err(std::fmt::Error)
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::chunk_type::ChunkType;
-    use std::str::FromStr;
-
     fn testing_chunk() -> Chunk {
         let data_length: u32 = 42;
         let chunk_type = "RuSt".as_bytes();

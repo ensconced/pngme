@@ -10,13 +10,6 @@ impl ChunkType {
     pub fn try_from(bytes: [u8; 4]) -> Result<Self, ()> {
         Ok(Self { bytes })
     }
-    pub fn to_string(&self) -> String {
-        if let Ok(str) = std::str::from_utf8(&self.bytes) {
-            str.to_string()
-        } else {
-            panic!();
-        }
-    }
     pub fn bytes(&self) -> [u8; 4] {
         self.bytes
     }
@@ -45,13 +38,13 @@ impl TryFrom<[u8; 4]> for ChunkType {
 }
 
 fn is_letter(char: char) -> bool {
-    (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z')
+    ('a'..='z').contains(&char) || ('A'..='Z').contains(&char)
 }
 
 impl FromStr for ChunkType {
     type Err = ();
     fn from_str(str: &str) -> Result<Self, Self::Err> {
-        if str.chars().all(|char| is_letter(char)) {
+        if str.chars().all(is_letter) {
             if let Ok(bytes) = str.as_bytes().try_into() {
                 return Ok(Self { bytes });
             }
@@ -62,7 +55,11 @@ impl FromStr for ChunkType {
 
 impl Display for ChunkType {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), std::fmt::Error> {
-        write!(fmt, "{}", self.to_string())
+        if let Ok(str) = std::str::from_utf8(&self.bytes) {
+            write!(fmt, "{}", str)
+        } else {
+            Err(std::fmt::Error)
+        }
     }
 }
 
