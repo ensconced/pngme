@@ -13,6 +13,11 @@ pub struct Chunk {
     crc: u32,
 }
 
+pub struct TakenFrom {
+    pub chunk: Chunk,
+    pub bytes_remaining: u32,
+}
+
 fn four_bytes_from_slice(slice: &[u8]) -> Result<[u8; 4], ()> {
     if let Ok(result) = slice.try_into() {
         Ok(result)
@@ -34,37 +39,71 @@ impl Chunk {
     fn crc(&self) -> u32 {
         self.crc
     }
-    fn new(chunk_type: ChunkType, data: Vec<u8>) -> Self {
+    pub fn as_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        bytes.extend(self.length.to_be_bytes());
+        bytes.extend(self.chunk_type.bytes());
+        bytes.extend(&self.data);
+        bytes.extend(self.crc.to_be_bytes());
+        bytes
+    }
+
+    pub fn new(chunk_type: ChunkType, data: Vec<u8>) -> Self {
+        let mut data_for_crc = Vec::new();
+        data_for_crc.extend_from_slice(&chunk_type.bytes());
+        data_for_crc.extend(data.iter());
+        let crc = checksum_ieee(&data_for_crc);
+
         Self {
             length: data.len() as u32,
             chunk_type,
             data,
+            crc,
         }
+    }
+
+    pub fn take_from(bytes: &[u8]) -> Result<TakenFrom, ()> {
+        let first_four_bytes = four_bytes_from_slice(&bytes[0..4])?;
+        let length = u32::from_be_bytes(first_four_bytes);
+        let second_four_bytes = four_bytes_from_slice(&bytes[4..8])?;
+        let chunk_type = ChunkType::try_from(second_four_bytes)?;
+        let mut data = Vec::new();
+        let crc_start = 8 + length as usize;
+        data.extend_from_slice(&bytes[8..crc_start]);
+        let provided_crc =
+            u32::from_be_bytes(four_bytes_from_slice(&bytes[crc_start..bytes.len()])?);
+        let computed_crc = checksum_ieee(&bytes[4..crc_start]);
+        if provided_crc != computed_crc {
+            return Err(());
+        }
+        Ok(TakenFrom {
+            chunk: Self {
+                length,
+                chunk_type,
+                data,
+                crc: computed_crc,
+            },
+            bytes_remaining: bytes.len() as u32 - 4 - 4 - length as u32 - 4,
+        })
     }
 }
 
 impl TryFrom<&Vec<u8>> for Chunk {
     type Error = ();
     fn try_from(bytes: &Vec<u8>) -> Result<Self, ()> {
-        let first_four_bytes = four_bytes_from_slice(&bytes[0..4])?;
-        let length = u32::from_be_bytes(first_four_bytes);
-        let second_four_bytes = four_bytes_from_slice(&bytes[4..8])?;
-        let chunk_type = ChunkType::try_from(second_four_bytes)?;
-        let mut data = Vec::new();
-        data.extend_from_slice(&bytes[8..bytes.len() - 4]);
-        let provided_crc =
-            u32::from_be_bytes(four_bytes_from_slice(&bytes[bytes.len() - 4..bytes.len()])?);
-        let computed_crc = checksum_ieee(&bytes[4..bytes.len() - 4]);
-        if provided_crc != computed_crc {
-            eprintln!("computed: {}, provided: {}", computed_crc, provided_crc);
-            return Err(());
+        if let Ok(TakenFrom {
+            chunk,
+            bytes_remaining,
+        }) = Self::take_from(&bytes[..])
+        {
+            if bytes_remaining == 0 {
+                Ok(chunk)
+            } else {
+                Err(())
+            }
+        } else {
+            Err(())
         }
-        Ok(Self {
-            length,
-            chunk_type,
-            data,
-            crc: computed_crc,
-        })
     }
 }
 

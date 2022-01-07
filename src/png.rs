@@ -1,4 +1,6 @@
-use crate::chunk::Chunk;
+use std::array::TryFromSliceError;
+
+use crate::chunk::{Chunk, TakenFrom};
 
 pub struct Png {
     chunks: Vec<Chunk>,
@@ -7,6 +9,36 @@ pub struct Png {
 impl Png {
     fn from_chunks(chunks: Vec<Chunk>) -> Self {
         Self { chunks }
+    }
+    fn chunks(&self) -> &Vec<Chunk> {
+        &self.chunks
+    }
+    pub const STANDARD_HEADER: [u8; 8] = [137, 80, 78, 71, 13, 10, 26, 10];
+}
+
+impl TryFrom<&[u8]> for Png {
+    type Error = ();
+    fn try_from(bytes: &[u8]) -> Result<Self, ()> {
+        let result: Result<[u8; 8], TryFromSliceError> = bytes[0..8].try_into();
+        if let Ok(first_eight_bytes) = result {
+            if first_eight_bytes == Png::STANDARD_HEADER {
+                let mut chunks = Vec::new();
+                let mut remaining_data = &bytes[9..bytes.len()];
+                while let Ok(TakenFrom {
+                    chunk,
+                    bytes_remaining,
+                }) = Chunk::take_from(remaining_data)
+                {
+                    chunks.push(chunk);
+                    remaining_data = &bytes[bytes.len() - bytes_remaining as usize..bytes.len()]
+                }
+                Ok(Self { chunks })
+            } else {
+                Err(())
+            }
+        } else {
+            Err(())
+        }
     }
 }
 
