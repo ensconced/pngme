@@ -1,4 +1,7 @@
-use std::array::TryFromSliceError;
+use std::{
+    array::TryFromSliceError,
+    fmt::{Display, Formatter},
+};
 
 use crate::chunk::{Chunk, TakenFrom};
 
@@ -13,17 +16,44 @@ impl Png {
     fn chunks(&self) -> &Vec<Chunk> {
         &self.chunks
     }
+    fn chunk_by_type(&self, chunk_type: &str) -> Option<&Chunk> {
+        self.chunks
+            .iter()
+            .find(|chunk| chunk.chunk_type().bytes() == chunk_type.as_bytes())
+    }
+    fn append_chunk(&mut self, chunk: Chunk) {
+        self.chunks.push(chunk);
+    }
+    fn remove_chunk(&mut self, chunk_type_str: &str) -> Result<(), ()> {
+        for (idx, chunk) in self.chunks.iter().enumerate() {
+            if chunk.chunk_type().to_string() == chunk_type_str {
+                self.chunks.swap_remove(idx);
+                return Ok(());
+            }
+        }
+        Err(())
+    }
+    fn as_bytes(&self) -> Vec<u8> {
+        Self::STANDARD_HEADER
+            .into_iter()
+            .chain(
+                self.chunks
+                    .iter()
+                    .flat_map(|chunk| chunk.as_bytes().into_iter()),
+            )
+            .collect()
+    }
     pub const STANDARD_HEADER: [u8; 8] = [137, 80, 78, 71, 13, 10, 26, 10];
 }
 
 impl TryFrom<&[u8]> for Png {
     type Error = ();
     fn try_from(bytes: &[u8]) -> Result<Self, ()> {
-        let result: Result<[u8; 8], TryFromSliceError> = bytes[0..8].try_into();
-        if let Ok(first_eight_bytes) = result {
+        let header_result: Result<[u8; 8], TryFromSliceError> = bytes[0..8].try_into();
+        if let Ok(first_eight_bytes) = header_result {
             if first_eight_bytes == Png::STANDARD_HEADER {
                 let mut chunks = Vec::new();
-                let mut remaining_data = &bytes[9..bytes.len()];
+                let mut remaining_data = &bytes[8..bytes.len()];
                 while let Ok(TakenFrom {
                     chunk,
                     bytes_remaining,
@@ -39,6 +69,17 @@ impl TryFrom<&[u8]> for Png {
         } else {
             Err(())
         }
+    }
+}
+
+impl Display for Png {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), std::fmt::Error> {
+        let bytes = self.as_bytes();
+        let mut hex_string = String::new();
+        for byte in bytes {
+            hex_string.push_str(&format!("{:x}", byte))
+        }
+        write!(fmt, "{}", hex_string)
     }
 }
 

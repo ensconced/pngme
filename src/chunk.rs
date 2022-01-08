@@ -30,10 +30,10 @@ impl Chunk {
     fn length(&self) -> u32 {
         self.length
     }
-    fn chunk_type(&self) -> &ChunkType {
+    pub fn chunk_type(&self) -> &ChunkType {
         &self.chunk_type
     }
-    fn data_as_string(&self) -> Result<String, FromUtf8Error> {
+    pub fn data_as_string(&self) -> Result<String, FromUtf8Error> {
         String::from_utf8(self.data.clone())
     }
     fn crc(&self) -> u32 {
@@ -63,6 +63,9 @@ impl Chunk {
     }
 
     pub fn take_from(bytes: &[u8]) -> Result<TakenFrom, ()> {
+        if bytes.len() < 12 {
+            return Err(());
+        }
         let first_four_bytes = four_bytes_from_slice(&bytes[0..4])?;
         let length = u32::from_be_bytes(first_four_bytes);
         let second_four_bytes = four_bytes_from_slice(&bytes[4..8])?;
@@ -70,8 +73,8 @@ impl Chunk {
         let mut data = Vec::new();
         let crc_start = 8 + length as usize;
         data.extend_from_slice(&bytes[8..crc_start]);
-        let provided_crc =
-            u32::from_be_bytes(four_bytes_from_slice(&bytes[crc_start..bytes.len()])?);
+        let provided_crc_bytes = four_bytes_from_slice(&bytes[crc_start..crc_start + 4])?;
+        let provided_crc = u32::from_be_bytes(provided_crc_bytes);
         let computed_crc = checksum_ieee(&bytes[4..crc_start]);
         if provided_crc != computed_crc {
             return Err(());

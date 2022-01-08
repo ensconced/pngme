@@ -1,0 +1,29 @@
+   Compiling pngme v0.1.0 (/Users/joebarnett/personal/pngme)
+warning: the item `FromStr` is imported redundantly
+   --> src/png.rs:117:13
+    |
+99  |     use std::str::FromStr;
+    |         ----------------- the item `FromStr` is already imported here
+...
+117 |         use std::str::FromStr;
+    |             ^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `std::str::FromStr`
+  --> src/png.rs:99:9
+   |
+99 |     use std::str::FromStr;
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: `pngme` (bin "pngme" test) generated 2 warnings
+    Finished test [unoptimized + debuginfo] target(s) in 0.89s
+     Running unittests (target/debug/deps/pngme-a5bec2129a58a974)
+bytes.len(): 4803, bytes_remaining: 4770
+bytes.len(): 4803, bytes_remaining: 4757
+bytes.len(): 4803, bytes_remaining: 4741
+bytes.len(): 4803, bytes_remaining: 4720
+bytes.len(): 4803, bytes_remaining: 27
+bytes.len(): 4803, bytes_remaining: 12
+bytes.len(): 4803, bytes_remaining: 0
+done taking chunks
